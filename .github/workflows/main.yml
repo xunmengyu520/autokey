@@ -1,22 +1,28 @@
-
 name: Build KeyX
 
 on:
-  workflow_dispatch:      # 允许在 Actions 页面手动点击运行
+  workflow_dispatch:
   push:
-    branches: [ main ]    # 每次 push 到 main 分支也会自动编译
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 官方 devkitPro 镜像，自带 devkitA64 + libnx，免去手动安装工具链
     container: devkitpro/devkita64:latest
 
     steps:
-      - name: 检出代码（含子模块）
+      - name: 检出代码
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: 拉取 libultrahand 依赖（tesla.hpp 等UI框架）
+        run: |
+          rm -rf ovl-KeyX/libs/libultrahand
+          git clone --depth 1 https://github.com/ppkantorski/libultrahand ovl-KeyX/libs/libultrahand
+
+      - name: 拉取 libnotification 依赖
+        run: |
+          rm -rf sys-KeyX/lib/libnotification
+          git clone --depth 1 https://github.com/TOM-BadEN/NX-Notification.git sys-KeyX/lib/libnotification
 
       - name: 安装编译所需的额外工具
         run: |
