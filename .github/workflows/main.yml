@@ -1,0 +1,36 @@
+name: Build KeyX
+
+on:
+  workflow_dispatch:      # 允许在 Actions 页面手动点击运行
+  push:
+    branches: [ main ]    # 每次 push 到 main 分支也会自动编译
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # 官方 devkitPro 镜像，自带 devkitA64 + libnx，免去手动安装工具链
+    container: devkitpro/devkita64:latest
+
+    steps:
+      - name: 检出代码（含子模块）
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: 安装编译所需的额外工具
+        run: |
+          apt-get update
+          apt-get install -y zip python-is-python3
+
+      - name: 编译 (make all -> 生成 out/KeyX-CN.zip / KeyX-EN.zip)
+        run: |
+          make
+
+      - name: 上传编译产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: KeyX-build-${{ github.run_number }}
+          path: |
+            out/KeyX-CN.zip
+            out/KeyX-EN.zip
+          if-no-files-found: error
