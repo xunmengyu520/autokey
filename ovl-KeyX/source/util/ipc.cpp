@@ -1,0 +1,64 @@
+#include "ipc.hpp"
+#include "sysmodule.hpp" 
+
+// 全局实例定义 - 程序启动时创建，退出时自动析构
+IPCManager g_ipcManager;
+
+IPCManager::IPCManager() : m_service{0}, m_connected(false) {
+}
+
+IPCManager::~IPCManager() {
+    disconnect();
+}
+
+Result IPCManager::connect() {
+    if (m_connected) return 0;
+    Result rc = smGetService(&m_service, SERVICE_NAME);
+    if (R_SUCCEEDED(rc)) m_connected = true;
+    return rc;
+}
+
+void IPCManager::disconnect() {
+    if (m_connected) {
+        serviceClose(&m_service);
+        m_service = {0};
+        m_connected = false;
+    }
+}
+
+bool IPCManager::isConnected() const {
+    return m_connected;
+}
+
+Result IPCManager::SendCommand(u64 cmd_id, bool auto_start) {
+    if (!SysModuleManager::isRunning()) {
+        if (!auto_start) return 0;
+        Result rc = SysModuleManager::startModule();
+        if (R_FAILED(rc)) return rc;
+        svcSleepThread(200000000ULL);  // 等待200ms初始化
+    }
+    
+    if (!m_connected) {
+        Result rc = connect();
+        if (R_FAILED(rc)) return rc;  
+    }
+    Result rc = serviceDispatch(&m_service, cmd_id);
+    disconnect();
+    return rc;
+}
+
+Result IPCManager::sendEnableAutoFireCommand() {
+    return SendCommand(CMD_ENABLE_AUTOFIRE, true);
+}
+
+Result IPCManager::sendDisableAutoFireCommand() {
+    return SendCommand(CMD_DISABLE_AUTOFIRE, false);
+}
+
+Result IPCManager::sendReloadAutoFireCommand() {
+    return SendCommand(CMD_RELOAD_AUTOFIRE, false);
+}
+
+Result IPCManager::sendExitCommand() {
+    return SendCommand(CMD_EXIT, false);
+}
